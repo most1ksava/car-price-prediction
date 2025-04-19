@@ -15,9 +15,10 @@
 Вы можете выбрать один из двух вариантов запуска проекта:
 
 1. **Запуск из исходного кода** - клонируйте этот репозиторий и запустите с помощью docker-compose (инструкции ниже)
-2. **Запуск с помощью Docker Hub** - используйте готовые образы из Docker Hub, [инструкции здесь](README-Docker.md)
 
 ## Исследование и моделирование
+
+Было проведено исследование на данных `autos.csv` [полный блокнот тут](Data_Science_car_price_regressor.ipynb)
 
 Модель прогнозирует стоимость автомобилей на основе набора характеристик. Процесс разработки включает:
 
@@ -29,114 +30,79 @@
 2. **Обучение модели**:
    - Используется алгоритм XGBoost для регрессии
    - Гиперпараметры: max_depth=12, learning_rate=0.15, n_estimators=100
-   - Оценка производится по метрике RMSE (Root Mean Square Error)
+   - Оценка производится по метрике RMSE 
 
 3. **Сохранение модели**:
    - Модель регистрируется в MLflow для версионирования
    - Артефакты хранятся в MinIO, метаданные в PostgreSQL
 
+4. **Развертывание**:
+   - FastAPI автоматически загружает последнюю версию модели
+   - Реализована обработка ошибок и мониторинг
+
+5. **Обновление модели**:
+   - Для обновления модели достаточно запустить обучение заново
+   - FastAPI автоматически обнаружит новую версию при перезапуске
+
 ## Описание инфраструктуры
 
 Проект включает следующие компоненты:
 
-- **MLFlow** - для трекинга экспериментов и хранения моделей (порт 5000)
+- **MLFlow** - для экспериментов и хранения моделей (порт 5000)
 - **PostgreSQL** - база данных для хранения метаданных MLFlow (порт 5432)
 - **MinIO** - S3-совместимое хранилище для артефактов модели (порт 9000, консоль на порту 9001)
-- **FastAPI** - REST API сервис для инференса (порт 8000)
+- **FastAPI** - REST API сервис (порт 8000)
 
 ## Необходимые компоненты
 
 - Docker и docker-compose
 - Python 3.9+
-- Набор данных `autos.csv` (поместите в директорию проекта)
+- Набор данных `autos.csv` (поместите и разархивируйте в директории проекта, или поменять на свой)
 
 ## Структура проекта
 
 ```
-├── app/                        # Директория с FastAPI приложением
-│   ├── __init__.py
-│   └── main.py                 # Основной файл FastAPI приложения с моделью предсказания
-├── docker-compose.yml          # Конфигурация docker-compose для запуска всех сервисов
-├── fastapi.Dockerfile          # Dockerfile для FastAPI сервиса
-├── mlflow.Dockerfile           # Dockerfile для MLflow сервера
-├── train.Dockerfile            # Dockerfile для обучения модели
-├── train_model.py              # Скрипт для обучения и регистрации модели
-├── requirements.txt            # Зависимости Python
-├── docs/                       # Документация и скриншоты
-│   └── img/                    # Скриншоты для документации
-├── README.md                   # Основная документация проекта
-├── README-Docker.md            # Инструкция по запуску через Docker Hub
-├── LICENSE                     # MIT лицензия
-├── mlflow/                     # Директория для данных MLflow (создается при запуске)
-└── autos.csv                   # Набор данных для обучения модели (необходимо добавить)
+-app/ - FastAPI приложение
+--init_.py
+--main.py - Основной API-сервис с моделью предсказания
+-docker-compose.yml - Конфигурация для запуска всех сервисов
+-fastapi.Dockerfile - Сборка FastAPI сервиса
+-mlflow.Dockerfile - Сборка MLflow сервера
+-train_model.py - Обучение и регистрация модели
+-extract-autos.py - Рзорхивация с autos.csv с git
+-requirements.txt - Зависимости Python
+-docs/ - Документы для gti
+--img/ - Скриншоты и изображения
+-README.md - Описание и инструкции
+-LICENSE - MIT лицензия
+-mlflow/ - Директория для данных MLflow (создаётся автоматически)
+-autos.zip - Датасет для обучения модели
 ```
-
-## Описание файлов проекта
-
-### Основные файлы
-
-- **app/main.py** - FastAPI приложение с REST API для предсказания цен на автомобили. Включает в себя:
-  - Загрузку модели из MLflow
-  - Предобработку входных данных
-  - Обработку запросов на предсказание
-  - Валидацию данных через Pydantic
-  - Обработку ошибок и логирование
-
-- **train_model.py** - Скрипт для обучения и регистрации модели:
-  - Загрузка и очистка данных из CSV-файла
-  - Кодирование категориальных признаков
-  - Обучение модели XGBoost
-  - Логирование метрик и параметров в MLflow
-  - Регистрация модели в реестре моделей MLflow
-
-- **docker-compose.yml** - Конфигурация всех сервисов:
-  - Настройка PostgreSQL для метаданных MLflow
-  - Настройка MinIO для хранения артефактов
-  - Настройка MLflow сервера
-  - Настройка FastAPI сервиса
-
-- **fastapi.Dockerfile** - Dockerfile для сборки контейнера FastAPI:
-  - Установка необходимых библиотек и зависимостей
-  - Настройка среды выполнения
-  - Копирование кода приложения
-
-- **mlflow.Dockerfile** - Dockerfile для сборки контейнера MLflow:
-  - Установка MLflow и зависимостей
-  - Настройка соединения с PostgreSQL и MinIO
-
-- **train.Dockerfile** - Dockerfile для сборки контейнера обучения:
-  - Установка зависимостей для модели
-  - Копирование скрипта обучения
-
-- **requirements.txt** - Список зависимостей Python проекта:
-  - fastapi, uvicorn, pydantic - для API
-  - pandas, numpy, scikit-learn, xgboost - для обработки данных и моделирования
-  - mlflow, boto3 - для взаимодействия с MLflow и MinIO
-
-- **app/__init__.py** - Инициализирующий файл для пакета app.
 
 ## Запуск проекта
 
-### 1. Клонируйте репозиторий
+### 1. Клонироваитть репозиторий
 
 ```bash
 git clone https://github.com/most1ksava/car-price-prediction.git
 cd car-price-prediction
 ```
 
-### 2. Запустите инфраструктуру
+### 2. Запустить инфраструктуру
 
 ```bash
 docker-compose up -d
 ```
-
 Это запустит MLFlow, PostgreSQL, MinIO и FastAPI.
 
-### 3. Скачайте датасет
+### 3. Разархивать датасет или поменять на свой
 
-Скачайте датасет `autos.csv` и поместите его в корневую директорию проекта.
+```bash
+python extract-autos.py
+```
+Это разархивирует датасет `autos.zip`
 
-### 4. Обучите и зарегистрируйте модель
+### 4. Обучить модель
 
 ```bash
 python train_model.py
@@ -152,17 +118,28 @@ python train_model.py
 
 ## Демонстрация работы
 
-### MLflow UI
-![MLflow UI](docs/img/mlflow-ui.png)
+### Docker-hub
+![Docker-hub](docs/img/docker-hub.png)
 
-### MinIO Console
-![MinIO Console](docs/img/minio-console.png)
+### MLflow UI
+![MLflow UI 1](docs/img/mlflow-ui-1.png)
+![MLflow UI 2](docs/img/mlflow-ui-2.png)
+
+### MinIO
+![MinIO 1](docs/img/minio-1.png)
+![MinIO 2](docs/img/minio-2.png)
 
 ### FastAPI Swagger
-![FastAPI Swagger](docs/img/fastapi-swagger.png)
+![FastAPI Swagger all](docs/img/fastapi-swagger-all.png)
+![FastAPI Swagger root](docs/img/fastapi-swagger-root.png)
+![FastAPI Swagger h](docs/img/fastapi-swagger-h.png)
+![FastAPI Swagger info](docs/img/fastapi-swagger-info.png)
+![FastAPI Swagger predict 1](docs/img/fastapi-swagger-predict-1.png)
+![FastAPI Swagger predict 2](docs/img/fastapi-swagger-predict-2.png)
 
 ### Предсказание модели
-![Предсказание модели](docs/img/model-prediction.png)
+![Предсказание модели](docs/img/model-prediction-1.png)
+![Предсказание модели](docs/img/model-prediction-2.png)
 
 ## Использование API
 
@@ -208,23 +185,6 @@ curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" -
 curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" -d "{\"vehicle_type\": \"suv\", \"registration_year\": 2015, \"gearbox\": \"auto\", \"power\": 200, \"model\": \"x5\", \"kilometer\": 50000, \"fuel_type\": \"diesel\", \"brand\": \"bmw\", \"repaired\": 0}"
 ```
 
-## MLOps-процесс
-
-1. **Разработка и эксперименты**:
-   - Исследование данных и создание признаков
-   - Обучение различных моделей с отслеживанием в MLflow
-
-2. **Версионирование моделей**:
-   - MLflow автоматически хранит версии моделей
-   - Каждая версия содержит параметры, метрики и артефакты
-
-3. **Развертывание**:
-   - FastAPI автоматически загружает последнюю версию модели
-   - Реализована обработка ошибок и мониторинг
-
-4. **Обновление модели**:
-   - Для обновления модели достаточно запустить обучение заново
-   - FastAPI автоматически обнаружит новую версию при перезапуске
 
 ## Лицензия
 
