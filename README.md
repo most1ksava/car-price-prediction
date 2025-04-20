@@ -120,7 +120,7 @@ python train_model.py
 ## Демонстрация работы
 
 ### Docker-hub
-![Docker-hub](docs/img/docker-hub.png)
+![Docker-hub](docs/img/docker-hub-new.png)
 
 ### MLflow UI
 ![MLflow UI 1](docs/img/mlflow-ui-1.png)
