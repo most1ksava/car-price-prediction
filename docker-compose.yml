@@ -53,7 +53,9 @@ services:
 
   # MLFlow сервер
   mlflow:
-    image: python:3.9-slim
+    build:
+      context: .
+      dockerfile: mlflow.Dockerfile
     container_name: mlflow-server
     restart: always
     depends_on:
@@ -65,14 +67,6 @@ services:
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
     ports:
       - "5000:5000"
-    volumes:
-      - ./mlflow:/mlflow
-    command: >
-      bash -c "pip install mlflow psycopg2-binary boto3 && 
-      mlflow server 
-      --backend-store-uri postgresql://mlflow:mlflow@postgres:5432/mlflow 
-      --default-artifact-root s3://mlflow/ 
-      --host 0.0.0.0"
 
   # FastAPI 
   fastapi:
