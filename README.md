@@ -94,6 +94,7 @@ cd car-price-prediction
 docker-compose up -d
 ```
 Это запустит MLFlow, PostgreSQL, MinIO и FastAPI.
+При первом запуске MLFlow необходимо загрузить зависимости
 
 ### 3. Разархивать датасет или поменять на свой
 
