@@ -40,36 +40,68 @@ def is_port_open(host, port, timeout=2):
     return result
 
 # Функция для проверки готовности MLflow сервера
-def is_mlflow_ready(url, max_retries=3, timeout=15):
+def is_mlflow_ready(url, max_retries=5, timeout=5):
     """готов ли MLflow к обработке запросов"""
     for i in range(max_retries):
         try:
-            response = requests.get(f"{url}/api/2.0/mlflow/experiments/list", timeout=timeout)
+            logger.info(f"Попытка проверки готовности MLflow {i+1}/{max_retries}")
+            
+            # Проверяем корневой путь MLflow
+            response = requests.get(f"{url}/", timeout=timeout)
             if response.status_code == 200:
+                logger.info(f"MLflow успешно ответил на запрос на {i+1} попытке")
                 return True
-        except RequestException:
-            logger.warning(f"MLflow сервер не отвечает. Попытка {i+1}/{max_retries}")
-            time.sleep(1)
+        except RequestException as e:
+            logger.warning(f"MLflow сервер не отвечает. Попытка {i+1}/{max_retries}. Ошибка: {e}")
+            time.sleep(2)  # Увеличиваем время ожидания между попытками
     return False
 
 # Проверка доступности MLflow сервера
 logger.info("Проверка доступности MLflow сервера на http://localhost:5000")
-if not is_port_open("localhost", 5000):
-    logger.error("MLflow сервер не доступен на http://localhost:5000. Убедитесь, что он запущен.")
-    sys.exit(1)
-else:
-    # Проверка готовности MLflow сервера
-    if not is_mlflow_ready("http://localhost:5000"):
-        logger.error("MLflow сервер запущен, но не готов к обработке запросов.")
-        logger.error("Дождитесь полного запуска сервера MLflow.")
-        sys.exit(1)
+mlflow_ready = False
+
+# Пробуем подключиться к MLflow несколько раз с паузами
+for attempt in range(3):  # 5 попыток
+    if is_port_open("localhost", 5000):
+        logger.info(f"MLflow порт доступен (попытка {attempt+1})")
+        # Проверка готовности MLflow сервера
+        if is_mlflow_ready("http://localhost:5000"):
+            logger.info("MLflow сервер готов к работе")
+            mlflow_ready = True
+            break
+        else:
+            logger.warning(f"MLflow сервер запущен, но API еще не готово (попытка {attempt+1}/5)")
     else:
-        logger.info("MLflow сервер готов к работе")
+        logger.warning(f"MLflow порт не доступен (попытка {attempt+1}/3)")
+    
+    if attempt < 4:  # Не делаем паузу после последней попытки
+        logger.info(f"Ожидание 5 секунд перед следующей попыткой...")
+        time.sleep(5)
+
+if not mlflow_ready:
+    logger.error("MLflow сервер не готов после нескольких попыток")
+    logger.error("Проверьте, запущен ли контейнер с MLflow и работает ли его API")
+    sys.exit(1)
 
 # Проверка доступности MinIO сервера
 logger.info("Проверка доступности MinIO сервера на http://localhost:9000")
-if not is_port_open("localhost", 9000):
-    logger.error("MinIO сервер не доступен на http://localhost:9000. Убедитесь, что он запущен.")
+minio_ready = False
+
+# Пробуем подключиться к MinIO несколько раз с паузами
+for attempt in range(3):  # 3 попытки
+    if is_port_open("localhost", 9000):
+        logger.info(f"MinIO порт доступен (попытка {attempt+1})")
+        minio_ready = True
+        break
+    else:
+        logger.warning(f"MinIO порт не доступен (попытка {attempt+1}/3)")
+    
+    if attempt < 2:  # Не делаем паузу после последней попытки
+        logger.info(f"Ожидание 3 секунд перед следующей попыткой...")
+        time.sleep(3)
+
+if not minio_ready:
+    logger.error("MinIO сервер не доступен после нескольких попыток")
     sys.exit(1)
 else:
     logger.info("MinIO сервер готов к работе")
